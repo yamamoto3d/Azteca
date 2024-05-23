@@ -1,5 +1,9 @@
+import os.path
 import time
+import os
 import threading
+from datetime import datetime
+import shutil
 
 try:
     from PySide2.QtCore import *
@@ -12,7 +16,6 @@ except:
 
 START_TEXT ="Start"
 STOP_TEXT ="Stop"
-
 class FolderSync(QWidget):
     dataChanged = Signal(dict)
 
@@ -22,7 +25,9 @@ class FolderSync(QWidget):
         self.source_path =""
         self.dest_path = ""
         self.ignore_list =[".mayaSwatches","3dPaintTextures"]
-
+        self.thread =None
+        self.check_span =3
+        self.stop_flag = False
         self.initUI()
 
     def initUI(self):
@@ -67,6 +72,7 @@ class FolderSync(QWidget):
 
         #スタートボタン
         self.start_button = QPushButton(START_TEXT)
+        self.start_button.clicked.connect(self.start_sync)
         main_layout.addWidget(self.start_button)
 
         #グループ
@@ -112,6 +118,56 @@ class FolderSync(QWidget):
         self.ignore_list=self.ignore_text_box.toPlainText().split("\n")
         self.dataChanged.emit(self.get_data())
 
+    def start_sync(self):
+        print("start sync")
+        #スレッドが実行されている場合、スレッドを停止
+        if self.stop_flag is False and self.thread is not None:
+            self.stop_flag = True
+            self.thread = None
+            self.start_button.setText(START_TEXT)
+            print("Stop flag"+str(self.stop_flag))
+        else:
+            if os.path.exists(self.source_path) and os.path.exists(self.dest_path):
+                #スレッドが作成されていない場合、スレッドを作成
+                if self.thread is None:
+                    self.stop_flag = False
+                    self.thread = threading.Thread(target=self._check_updatedfiles)
+                    self.thread.start()
+                    self.start_button.setText(STOP_TEXT)
+
+            else:
+                print("source or dest path does not exist")
+
+
+    def _check_updatedfiles(self):
+        while self.stop_flag is False:
+            #source_pathとdest_pathにあるファイルのリストとタイムスタンプを取得
+            source_files = self._get_files_and_timestamps(self.source_path)
+            dest_files = self._get_files_and_timestamps(self.dest_path)
+
+            #souce_pathにファイルでdest_filesにないファイルとdest_pathより新しいファイルをdest_pathにコピー
+
+            for filename, timestamp in source_files.items():
+                if filename not in dest_files or timestamp > dest_files[filename]:
+                    source_filepath = os.path.join(self.source_path, filename)
+                    dest_filepath = os.path.join(self.dest_path, filename)
+                    shutil.copy2(source_filepath, dest_filepath)
+                    print(f"copied {source_filepath} to {dest_filepath}")
+            print(self.stop_flag)
+            time.sleep(self.check_span)
+
+
+    def _get_files_and_timestamps(self, directory):
+        files_and_timestamps = {}
+
+        for filename in os.listdir(directory):
+            filepath = os.path.join(directory, filename)
+            if os.path.isfile(filepath):
+                timestamp = os.path.getmtime(filepath)
+                readable_timestamp = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                files_and_timestamps[filename] = readable_timestamp
+
+        return files_and_timestamps
     def get_data(self):
         data = {
             "source":self.source_path,

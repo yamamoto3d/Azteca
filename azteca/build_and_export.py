@@ -632,9 +632,9 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
         #フォルダシンク
         main_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Maximum, QSizePolicy.Maximum))
-        folder_sync_ui =azteca.folder_sync.FolderSync()
-        folder_sync_ui.dataChanged.connect(self._folder_sync_changed)
-        main_layout.addWidget(folder_sync_ui)
+        self.folder_sync_ui =azteca.folder_sync.FolderSync()
+        self.folder_sync_ui.dataChanged.connect(self._folder_sync_changed)
+        main_layout.addWidget(self.folder_sync_ui)
 
         #メインレイアウトセット
         self.setLayout(main_layout)
@@ -672,7 +672,9 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
     def load(self):
         self.isLoading =True
-        self.nodeTree.set_all_data(self._load_json())
+        data =self._load_json()
+        self.nodeTree.set_all_data(data)
+        self.folder_sync_ui.set_data(data["syncData"])
         self.isLoading = False
 
     def data_structure_changed(self):
@@ -682,6 +684,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         if self.currentItem:
             self.isLoading=True
             self.currentItem.setData(2, Qt.UserRole, data)
+            self.isLoading=False
             self.currentItem.setText(1,data["target"])
             self.isLoading=False
         self.save_json()
