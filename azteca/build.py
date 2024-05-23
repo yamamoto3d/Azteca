@@ -60,8 +60,13 @@ def combine_all(target):
 
 def triangulate_mesh(target):
     cmds.polyTriangulate(target, constructionHistory=False)
+def go_to_bind_pose(target):
+    cmds.select(target,r=True)
+    mel.eval("GoToBindPose")
+    cmds.select(clear=True)
 
 def copy_skin_keep_joint(source, destination, surface_association="closestPoint", influence_association="closestJoint"):
+    go_to_bind_pose(source)
     histories = cmds.listHistory(source, pruneDagObjects=True, interestLevel=2)
     source_skincluster = cmds.ls(histories, type="skinCluster")[0]
     max_influences = cmds.getAttr(source_skincluster+".maxInfluences")
