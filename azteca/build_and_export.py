@@ -20,6 +20,7 @@ import copy
 import maya.cmds as cmds
 import azteca.build
 import azteca.folder_sync
+import azteca.game_path_panel
 
 #Global変数
 Window = None
@@ -36,45 +37,6 @@ DEF_BUILD_NODE_DATA ={"enable":True,
                    "sub2poly":False}
 SURFACE_ASSOCIATION =["closestPoint","closestComponent","rayCast"]
 INFLUENCE_ASSOCIATION =["closestJoint","closestBone","label","name","oneToOne"]
-GAME_PATH_OPTION_VAR_NAME = "bae_game_path"
-
-
-class GamePathPanel(QWidget):
-    def __init__(self, parent=None, *args, **kwargs):
-        super(GamePathPanel, self).__init__(parent, *args, **kwargs)
-        self.initUI()
-
-    def initUI(self):
-        path_select_layout = QHBoxLayout()
-
-        path =""
-        if cmds.optionVar(exists=GAME_PATH_OPTION_VAR_NAME):
-            path = cmds.optionVar(q=GAME_PATH_OPTION_VAR_NAME)
-
-        self.path_line_edit = QLineEdit(path)
-        self.path_line_edit.setReadOnly(True)
-
-        path_select_layout.addWidget(self.path_line_edit)
-
-        pick_path_button = QPushButton("SetPath")
-        pick_path_button.clicked.connect(self._openGamePathDialog)
-
-        path_select_layout.addWidget(pick_path_button)
-
-        group = QGroupBox("Game Base Path")
-        group.setLayout(path_select_layout)
-
-        root_layout =QVBoxLayout()
-        root_layout.addWidget(group)
-        self.setLayout(root_layout)
-
-    def _openGamePathDialog(self):
-        response = QFileDialog.getExistingDirectory (None, "Select Directory")
-        if response :
-            path = response
-            self.path_line_edit.setText(path)
-            cmds.optionVar(stringValue=(GAME_PATH_OPTION_VAR_NAME, path))
-
 
 
 
@@ -192,7 +154,7 @@ class ExportSettingPanel(QWidget):
     def _open_file_path_dialog(self):
         base_path = cmds.workspace(listFullWorkspaces=True)[0]
         if(self.currentData["base"]=="game"):
-            base_path = cmds.optionVar(q=GAME_PATH_OPTION_VAR_NAME)
+            base_path = cmds.optionVar(q=azteca.game_path_panel.GAME_PATH_OPTION_VAR_NAME)
 
         response = QFileDialog.getSaveFileName (None, "Select File",base_path)
         path = response[0]
@@ -576,7 +538,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
         self.exportExecButton = QPushButton("Execute Selection")
         self.exportSettingPanel = ExportSettingPanel()
-        self.gamePathPanel = GamePathPanel()
+        self.gamePathPanel =azteca.game_path_panel.GamePathPanel()
         self.nodeTree = NodeTreeWidget()
 
         self.currentItem = None
@@ -736,7 +698,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
         base_path = cmds.workspace(listFullWorkspaces=True)[0]
         if data["base"] == "game":
-            base_path = cmds.optionVar(q=GAME_PATH_OPTION_VAR_NAME)
+            base_path = cmds.optionVar(q=azteca.game_path_panel.GAME_PATH_OPTION_VAR_NAME)
 
         path = base_path+data["path"]
 

@@ -14,8 +14,12 @@ except:
     from PySide6.QtGui import *
     from PySide6.QtWidgets import *
 
+import maya.cmds as cmds
+import azteca.game_path_panel as game_path_panel
+
 START_TEXT ="Start"
 STOP_TEXT ="Stop"
+BASE_PATH =["Maya","Game"]
 class FolderSync(QWidget):
     dataChanged = Signal(dict)
 
@@ -24,7 +28,8 @@ class FolderSync(QWidget):
         self.data ={}
         self.source_path =""
         self.dest_path = ""
-        self.ignore_list =[".mayaSwatches","3dPaintTextures"]
+        self.source_base ="Maya"
+        self.dest_base ="Maya"
         self.thread =None
         self.check_span =3
         self.stop_flag = False
@@ -35,7 +40,12 @@ class FolderSync(QWidget):
 
         #ソース選択
         source_layout = QHBoxLayout()
-        source_layout.addWidget(QLabel("Source Folder"))
+
+        self.source_base_select = QComboBox()
+        self.source_base_select.addItems(BASE_PATH)
+        self.source_base_select.currentIndexChanged.connect(self._source_base_changed)
+        source_layout.addWidget(self.source_base_select)
+
         self.source_line = QLineEdit()
         self.source_line.setReadOnly(True)
         source_layout.addWidget(self.source_line)
@@ -45,7 +55,11 @@ class FolderSync(QWidget):
 
         #ディスト選択
         dest_layout =QHBoxLayout()
-        dest_layout.addWidget(QLabel("Dest Folder"))
+        self.dest_base_select = QComboBox()
+        self.dest_base_select.addItems(BASE_PATH)
+        self.dest_base_select.currentIndexChanged.connect(self._dest_base_changed)
+        dest_layout.addWidget(self.dest_base_select)
+
         self.dest_line =QLineEdit()
         self.dest_line.setReadOnly(True)
 
@@ -54,21 +68,11 @@ class FolderSync(QWidget):
         dest_select_buttion.clicked.connect(self._dest_pick)
         dest_layout.addWidget(dest_select_buttion)
 
-        #排除リスト
-        ignore_lyaout =QHBoxLayout()
-        ignore_lyaout.addWidget(QLabel("Ignore List"))
-        self.ignore_text_box = QTextEdit()
-        self.ignore_text_box.setMaximumHeight(60)
-        self.ignore_text_box.textChanged.connect(self._ignore_changed)
-        text =""
-        for i in self.ignore_list:
-            text = text+i+"\n"
-        self.ignore_text_box.setText(text)
-        ignore_lyaout.addWidget(self.ignore_text_box)
-
+        #レイアウトに追加
+        main_layout.addWidget(QLabel("Source"))
         main_layout.addLayout(source_layout)
+        main_layout.addWidget(QLabel("Destination"))
         main_layout.addLayout(dest_layout)
-        main_layout.addLayout(ignore_lyaout)
 
         #スタートボタン
         self.start_button = QPushButton(START_TEXT)
@@ -92,31 +96,45 @@ class FolderSync(QWidget):
         self.dest_path = data["dest"]
         self.dest_line.setText(self.dest_path)
 
-        self.ignore_list=data["ignore"]
-        text =""
-        for i in self.ignore_list:
-            text = text+i+"\n"
-        self.ignore_text_box.setText(text)
+        self.source_base = data["source_base"]
+        self.dest_base = data["dest_base"]
+        self.source_base_select.setCurrentText(self.source_base)
+        self.dest_base_select.setCurrentText(self.dest_base)
 
+    def _source_base_changed(self):
+        self.source_base = self.source_base_select.currentText()
+        self.dataChanged.emit(self.get_data())
+
+    def _dest_base_changed(self):
+        self.dest_base = self.dest_base_select.currentText()
+        self.dataChanged.emit(self.get_data())
+
+    def _get_base_path(self,base):
+        path =""
+        if base =="Maya":
+            path = cmds.workspace(listFullWorkspaces=True)[0]
+        else:
+            path = game_path_panel.get_game_path()
+        return path
 
     def _source_pick(self):
-        path = QFileDialog.getExistingDirectory(None, "Select source directory")
-        if path:
-            self.source_path =path
-            self.source_line.setText(path)
-            self.dataChanged.emit(self.get_data())
+        base_path = self._get_base_path(self.source_base)
 
+        path = QFileDialog.getExistingDirectory(None, "Select source directory",base_path)
+        if path and base_path in path:
+            relative_path = path.replace(base_path,"")
+            self.source_path =relative_path
+            self.source_line.setText(relative_path)
+            self.dataChanged.emit(self.get_data())
 
     def _dest_pick(self):
-        path = QFileDialog.getExistingDirectory(None, "Select destination directory")
-        if path:
-            self.dest_path = path
-            self.dest_line.setText(path)
+        base_path = self._get_base_path(self.dest_base)
+        path = QFileDialog.getExistingDirectory(None, "Select destination directory",base_path)
+        if path and base_path in path:
+            relative_path = path.replace(base_path,"")
+            self.dest_path = relative_path
+            self.dest_line.setText(relative_path)
             self.dataChanged.emit(self.get_data())
-
-    def _ignore_changed(self):
-        self.ignore_list=self.ignore_text_box.toPlainText().split("\n")
-        self.dataChanged.emit(self.get_data())
 
     def start_sync(self):
         print("start sync")
@@ -125,9 +143,12 @@ class FolderSync(QWidget):
             self.stop_flag = True
             self.thread = None
             self.start_button.setText(START_TEXT)
-            print("Stop flag"+str(self.stop_flag))
         else:
-            if os.path.exists(self.source_path) and os.path.exists(self.dest_path):
+            source_path = self._get_base_path(self.source_base)+self.source_path
+            dest_path = self._get_base_path(self.dest_base)+self.dest_path
+            print(source_path)
+            print(dest_path)
+            if os.path.exists(source_path) and os.path.exists(dest_path):
                 #スレッドが作成されていない場合、スレッドを作成
                 if self.thread is None:
                     self.stop_flag = False
@@ -140,20 +161,22 @@ class FolderSync(QWidget):
 
 
     def _check_updatedfiles(self):
+        source_path = self._get_base_path(self.source_base) + self.source_path
+        dest_path = self._get_base_path(self.dest_base) + self.dest_path
+
         while self.stop_flag is False:
             #source_pathとdest_pathにあるファイルのリストとタイムスタンプを取得
-            source_files = self._get_files_and_timestamps(self.source_path)
-            dest_files = self._get_files_and_timestamps(self.dest_path)
+            source_files = self._get_files_and_timestamps(source_path)
+            dest_files = self._get_files_and_timestamps(dest_path)
 
             #souce_pathにファイルでdest_filesにないファイルとdest_pathより新しいファイルをdest_pathにコピー
 
             for filename, timestamp in source_files.items():
                 if filename not in dest_files or timestamp > dest_files[filename]:
-                    source_filepath = os.path.join(self.source_path, filename)
-                    dest_filepath = os.path.join(self.dest_path, filename)
+                    source_filepath = os.path.join(source_path, filename)
+                    dest_filepath = os.path.join(dest_path, filename)
                     shutil.copy2(source_filepath, dest_filepath)
                     print(f"copied {source_filepath} to {dest_filepath}")
-            print(self.stop_flag)
             time.sleep(self.check_span)
 
 
@@ -172,7 +195,8 @@ class FolderSync(QWidget):
         data = {
             "source":self.source_path,
             "dest":self.dest_path,
-            "ignore":self.ignore_list
+            "source_base":self.source_base,
+            "dest_base":self.dest_base
         }
         return data
 
