@@ -137,13 +137,15 @@ class FolderSync(QWidget):
             self.dataChanged.emit(self.get_data())
 
     def start_sync(self):
-        print("start sync")
+
         #スレッドが実行されている場合、スレッドを停止
         if self.stop_flag is False and self.thread is not None:
+            print("stop sync")
             self.stop_flag = True
             self.thread = None
             self.start_button.setText(START_TEXT)
         else:
+            print("start sync")
             source_path = self._get_base_path(self.source_base)+self.source_path
             dest_path = self._get_base_path(self.dest_base)+self.dest_path
             print(source_path)

@@ -58,6 +58,9 @@ def combine_all(target):
     cmds.delete(target)
     return new_path
 
+def triangulate_mesh(target):
+    cmds.polyTriangulate(target, constructionHistory=False)
+
 def copy_skin_keep_joint(source, destination, surface_association="closestPoint", influence_association="closestJoint"):
     histories = cmds.listHistory(source, pruneDagObjects=True, interestLevel=2)
     source_skincluster = cmds.ls(histories, type="skinCluster")[0]
@@ -87,7 +90,8 @@ def main(source,
          combine_mode="None",
          copy_skin=False,
          surface_association="closestPoint",
-         influence_association="closestJoint"):
+         influence_association="closestJoint",
+         triangulate=False):
     d_copy=cmds.duplicate(source,fullPath=True)[0]
     print("デュプリケート後:"+d_copy)
     if sub_div_to_poly:
@@ -99,6 +103,10 @@ def main(source,
     elif combine_mode =="first children":
         d_copy = combine_child(d_copy)
         print("子コンバイン後:"+d_copy)
+
+    if triangulate:
+        print("トライアングレート")
+        triangulate_mesh(d_copy)
 
     if copy_skin:
         copy_skin_keep_joint(target,d_copy,surface_association,influence_association)

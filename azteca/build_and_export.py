@@ -28,13 +28,14 @@ FILE_FORMAT =["FBX export", "mayaAscii", "OBJexport"]
 COMBINE_MODE =["None", "all", "first children"]
 DEF_EXPORT_NODE_DATA ={"enable":True, "target": "", "base": "maya", "path": "", "format": "FBX export"}
 DEF_BUILD_NODE_DATA ={"enable":True,
-                   "source":"",
-                   "target":"",
-                   "combineMode":"None",
-                   "copySkin":False,
-                   "surfaceAssociation":"closestPoint",
-                   "influenceAssociation":"closestJoint",
-                   "sub2poly":False}
+                    "source":"",
+                    "target":"",
+                    "combineMode":"None",
+                    "copySkin":False,
+                    "surfaceAssociation":"closestPoint",
+                    "influenceAssociation":"closestJoint",
+                    "sub2poly":False,
+                    "triangulate":False}
 SURFACE_ASSOCIATION =["closestPoint","closestComponent","rayCast"]
 INFLUENCE_ASSOCIATION =["closestJoint","closestBone","label","name","oneToOne"]
 
@@ -244,6 +245,11 @@ class BuildSettingPanel(QWidget):
 
         main_layout.addLayout(combine_layout)
 
+        #三角化
+        self.triangulateCheckBox = QCheckBox("Triangulate")
+        self.triangulateCheckBox.clicked.connect(self._transigulate_checked)
+        main_layout.addWidget(self.triangulateCheckBox)
+
         #スキン
         self.skinCheckBox = QCheckBox("Copy target skin weight")
         self.skinCheckBox.clicked.connect(self._copy_skin_checked)
@@ -310,6 +316,12 @@ class BuildSettingPanel(QWidget):
             sub2_poly =Qt.Checked
 
         self.subDivCheckBox.setChecked(sub2_poly)
+
+        tri = Qt.Unchecked
+        if data["triangulate"]:
+            tri = Qt.Checked
+        self.triangulateCheckBox.setChecked(tri)
+
         self.currentData = data
 
     def _source_button_pushed(self):
@@ -338,6 +350,11 @@ class BuildSettingPanel(QWidget):
             checked=self.skinCheckBox.checkState() == Qt.Checked
             self.currentData["copySkin"]=checked
             self.skin_settinng_group.setVisible(checked)
+            self.dataChanged.emit(self.currentData)
+
+    def _transigulate_checked(self):
+        if self.currentData:
+            self.currentData["triangulate"]=self.triangulateCheckBox.checkState() == Qt.Checked
             self.dataChanged.emit(self.currentData)
 
     def _surface_association_changed(self):
@@ -542,7 +559,6 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         self.nodeTree = NodeTreeWidget()
 
         self.currentItem = None
-        self.sync_data ={}
 
         self.initUI()
         self.load()
@@ -636,7 +652,8 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         self.isLoading =True
         data =self._load_json()
         self.nodeTree.set_all_data(data)
-        self.folder_sync_ui.set_data(data["syncData"])
+        if data is not None:
+            self.folder_sync_ui.set_data(data["syncData"])
         self.isLoading = False
 
     def data_structure_changed(self):
@@ -653,7 +670,6 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
     def _folder_sync_changed(self, data):
         print(data)
-        self.sync_data=data
         self.save_json()
 
     def _executeSelection(self):
@@ -689,8 +705,15 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         sub_to_poly = data["sub2poly"]
         surface_association =data["surfaceAssociation"]
         influence_association =data["influenceAssociation"]
-
-        azteca.build.main(source,target,sub_to_poly,combine_mode,copy_skin,surface_association,influence_association)
+        triangulate_flag =data["triangulate"]
+        azteca.build.main(source,
+                          target,
+                          sub_to_poly,
+                          combine_mode,
+                          copy_skin,
+                          surface_association,
+                          influence_association,
+                          triangulate=triangulate_flag)
     def _export(self,data):
         options = "v=0"
         if data["format"] == "OBJexport":
@@ -714,7 +737,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
                 scene_name =scene_name.replace(scene_name.split(".")[-1],"json")
 
             allItem =  self.nodeTree.all_data()
-            allItem["syncData"]=self.sync_data
+            allItem["syncData"]=self.folder_sync_ui.get_data()
             print("Build and Expot:Save Setting File:"+scene_name)
             with open(scene_name, "w") as f:
                 json.dump(allItem, f, indent=2)
