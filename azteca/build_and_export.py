@@ -21,11 +21,11 @@ import maya.cmds as cmds
 import azteca.build
 import azteca.folder_sync
 import azteca.game_path_panel
+import azteca.build_setting_panel
 
 #Global変数
 Window = None
 FILE_FORMAT =["FBX export", "mayaAscii", "OBJexport"]
-COMBINE_MODE =["None", "all", "first children"]
 DEF_EXPORT_NODE_DATA ={"enable":True, "target": "", "base": "maya", "path": "", "format": "FBX export"}
 DEF_BUILD_NODE_DATA ={"enable":True,
                     "source":"",
@@ -35,13 +35,9 @@ DEF_BUILD_NODE_DATA ={"enable":True,
                     "surfaceAssociation":"closestPoint",
                     "influenceAssociation":"closestJoint",
                     "sub2poly":False,
-                    "triangulate":False}
-SURFACE_ASSOCIATION =["closestPoint","closestComponent","rayCast"]
-INFLUENCE_ASSOCIATION =["closestJoint","closestBone","label","name","oneToOne"]
-
-
-
-
+                    "triangulate":False,
+                    "setMaterial":False,
+                    "materials":[]}
 
 class ExportSettingPanel(QWidget):
     formatComboBox: QComboBox
@@ -193,184 +189,6 @@ class ExportSettingPanel(QWidget):
         self.currentData["base"]="game"
         self.dataChanged.emit(self.currentData)
 
-
-class BuildSettingPanel(QWidget):
-    dataChanged =  Signal(dict)
-
-    def __init__(self, parent=None, *args, **kwargs):
-        super(BuildSettingPanel, self).__init__(parent, *args, **kwargs)
-
-        self.currentData = None
-        self.initUI()
-
-    def initUI(self):
-        main_layout = QVBoxLayout()
-
-        #ソース
-        source_layout = QHBoxLayout()
-        source_layout.addWidget(QLabel("Source"))
-        self.souceLineEdit = QLineEdit()
-        self.souceLineEdit.setReadOnly(True)
-        source_layout.addWidget(self.souceLineEdit)
-        source_pick_button = QPushButton("Pick Selection")
-        source_pick_button.clicked.connect(self._source_button_pushed)
-        source_layout.addWidget(source_pick_button)
-
-        main_layout.addLayout(source_layout)
-
-        #ターゲット
-        target_Layout = QHBoxLayout()
-        target_Layout.addWidget(QLabel("Target"))
-        self.targetLineEdit = QLineEdit()
-        self.targetLineEdit.setReadOnly(True)
-        target_Layout.addWidget(self.targetLineEdit)
-        target_pick_button = QPushButton("Pick Selection")
-        target_pick_button.clicked.connect(self._target_button_pushed)
-        target_Layout.addWidget(target_pick_button)
-
-        main_layout.addLayout(target_Layout)
-
-        #Suvdiv
-        self.subDivCheckBox = QCheckBox("SubDiv to Polygon")
-        self.subDivCheckBox.clicked.connect(self._sub_div_checked)
-        main_layout.addWidget(self.subDivCheckBox)
-
-        #コンバイン
-        combine_layout = QHBoxLayout()
-        combine_layout.addWidget(QLabel("Combine"))
-        self.combineComboBox = QComboBox()
-        self.combineComboBox.addItems(COMBINE_MODE)
-        self.combineComboBox.currentIndexChanged.connect(self._combine_mode_changed)
-        combine_layout.addWidget(self.combineComboBox)
-
-        main_layout.addLayout(combine_layout)
-
-        #三角化
-        self.triangulateCheckBox = QCheckBox("Triangulate")
-        self.triangulateCheckBox.clicked.connect(self._transigulate_checked)
-        main_layout.addWidget(self.triangulateCheckBox)
-
-        #スキン
-        self.skinCheckBox = QCheckBox("Copy target skin weight")
-        self.skinCheckBox.clicked.connect(self._copy_skin_checked)
-        main_layout.addWidget(self.skinCheckBox)
-
-        self.skin_settinng_group= QGroupBox("Skin Copy Settings")
-        skin_group_layout = QVBoxLayout()
-
-        ss_layout=QHBoxLayout()
-        ss_layout.addWidget(QLabel("Surface association"))
-        self.surface_association_combo_box=QComboBox()
-        self.surface_association_combo_box.currentIndexChanged.connect(self._surface_association_changed)
-        self.surface_association_combo_box.addItems(SURFACE_ASSOCIATION)
-        ss_layout.addWidget(self.surface_association_combo_box)
-
-        ia_layout=QHBoxLayout()
-        ia_layout.addWidget(QLabel("Influence Association"))
-        self.influence_association_combo_box=QComboBox()
-        self.influence_association_combo_box.currentIndexChanged.connect(self._influence_association_changed)
-        self.influence_association_combo_box.addItems(INFLUENCE_ASSOCIATION)
-        ia_layout.addWidget(self.influence_association_combo_box)
-
-        skin_group_layout.addLayout(ss_layout)
-        skin_group_layout.addLayout(ia_layout)
-        self.skin_settinng_group.setLayout(skin_group_layout)
-        main_layout.addWidget(self.skin_settinng_group)
-
-        #グループ
-        self.group = QGroupBox("Build Setting")
-        self.group.setLayout(main_layout)
-
-        root_layout = QVBoxLayout()
-        root_layout.addWidget(self.group)
-        self.setLayout(root_layout)
-
-    def setData(self,data):
-        self.souceLineEdit.setText(data["source"])
-        self.targetLineEdit.setText(data["target"])
-        index = 0
-        for t in COMBINE_MODE:
-            if data["combineMode"] == t:
-                break
-            else:
-                index += 1
-
-        self.combineComboBox.setCurrentIndex(index)
-
-        copy_skin = Qt.Unchecked
-        if data["copySkin"]:
-            copy_skin = Qt.Checked
-            self.skin_settinng_group.setVisible(True)
-        else:
-            self.skin_settinng_group.setVisible(False)
-
-        self.skinCheckBox.setChecked(copy_skin)
-
-        sa_id =string_array_to_id(SURFACE_ASSOCIATION,data["surfaceAssociation"])
-        self.surface_association_combo_box.setCurrentIndex(sa_id)
-        ia_id = string_array_to_id(INFLUENCE_ASSOCIATION,data["influenceAssociation"])
-        self.influence_association_combo_box.setCurrentIndex(ia_id)
-
-        sub2_poly = Qt.Unchecked
-        if data["sub2poly"]:
-            sub2_poly =Qt.Checked
-
-        self.subDivCheckBox.setChecked(sub2_poly)
-
-        tri = Qt.Unchecked
-        if data["triangulate"]:
-            tri = Qt.Checked
-        self.triangulateCheckBox.setChecked(tri)
-
-        self.currentData = data
-
-    def _source_button_pushed(self):
-        if self.currentData :
-            selection = cmds.ls(sl=True,long=True)
-            if len(selection):
-                self.souceLineEdit.setText(selection[0])
-                self.currentData["source"]=selection[0]
-                self.dataChanged.emit(self.currentData)
-
-    def _target_button_pushed(self):
-        if self.currentData :
-            selection = cmds.ls(sl=True,long=True)
-            if len(selection):
-                self.targetLineEdit.setText(selection[0])
-                self.currentData["target"]=selection[0]
-                self.dataChanged.emit(self.currentData)
-
-    def _combine_mode_changed(self):
-        if self.currentData:
-            self.currentData["combineMode"]=COMBINE_MODE[self.combineComboBox.currentIndex()]
-            self.dataChanged.emit(self.currentData)
-
-    def _copy_skin_checked(self):
-        if self.currentData:
-            checked=self.skinCheckBox.checkState() == Qt.Checked
-            self.currentData["copySkin"]=checked
-            self.skin_settinng_group.setVisible(checked)
-            self.dataChanged.emit(self.currentData)
-
-    def _transigulate_checked(self):
-        if self.currentData:
-            self.currentData["triangulate"]=self.triangulateCheckBox.checkState() == Qt.Checked
-            self.dataChanged.emit(self.currentData)
-
-    def _surface_association_changed(self):
-        if self.currentData:
-            self.currentData["surfaceAssociation"]=SURFACE_ASSOCIATION[self.surface_association_combo_box.currentIndex()]
-            self.dataChanged.emit(self.currentData)
-
-    def _influence_association_changed(self):
-        if self.currentData:
-            self.currentData["influenceAssociation"]=INFLUENCE_ASSOCIATION[self.influence_association_combo_box.currentIndex()]
-            self.dataChanged.emit(self.currentData)
-
-    def _sub_div_checked(self):
-        if self.currentData:
-            self.currentData["sub2poly"] = self.subDivCheckBox.checkState() == Qt.Checked
-            self.dataChanged.emit(self.currentData)
 
 class NodeTreeWidget(QTreeWidget):
     dataStructureChanged = Signal()
@@ -572,25 +390,35 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         main_layout = QVBoxLayout()
         #ゲームパス選択
         main_layout.addWidget(self.gamePathPanel)
+
+        #タブウィジェットを作成
+        tab_widget = QTabWidget()
+        main_layout.addWidget(tab_widget)
+
+        #タブ1
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout()
+        tab1.setLayout(tab1_layout)
+
         # ツリーウィジェット
         self.nodeTree.currentItemChanged.connect(self.current_item_changed)
         self.nodeTree.dataStructureChanged.connect(self.data_structure_changed)
         self.nodeTree.itemChanged.connect(self.data_structure_changed)
-        main_layout.addWidget(self.nodeTree)
+        tab1_layout.addWidget(self.nodeTree)
 
         #エクスポート設定パネル
         self.exportSettingPanel.dataChanged.connect(self.export_setting_changed)
         self.exportSettingPanel.setVisible(False)
 
-        main_layout.addWidget(self.exportSettingPanel)
+        tab1_layout.addWidget(self.exportSettingPanel)
 
         #ビルド設定パネル
-        self.buildSettingPanel = BuildSettingPanel()
+        self.buildSettingPanel =azteca.build_setting_panel.BuildSettingPanel()
         self.buildSettingPanel.dataChanged.connect(self.export_setting_changed)
         self.buildSettingPanel.setVisible(False)
 
 
-        main_layout.addWidget(self.buildSettingPanel)
+        tab1_layout.addWidget(self.buildSettingPanel)
 
         #実行レイアウト
         execLayout: QHBoxLayout = QHBoxLayout()
@@ -601,18 +429,30 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         execute_all_button.clicked.connect(self._executeAll)
         execLayout.addWidget(execute_all_button)
 
-        main_layout.addLayout(execLayout)
+        tab1_layout.addLayout(execLayout)
 
         #実行ボタン
         self.exportExecButton.clicked.connect(self._executeSelection)
 
         execLayout.addWidget(self.exportExecButton)
+        tab1_layout.addItem(QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+
+
+        #タブ2
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout()
+        tab2.setLayout(tab2_layout)
 
         #フォルダシンク
-        main_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Maximum, QSizePolicy.Maximum))
         self.folder_sync_ui =azteca.folder_sync.FolderSync()
         self.folder_sync_ui.dataChanged.connect(self._folder_sync_changed)
-        main_layout.addWidget(self.folder_sync_ui)
+        tab2_layout.addWidget(self.folder_sync_ui)
+        tab2_layout.addItem(QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+
+
+        #タブウィジェットにタブを追加
+        tab_widget.addTab(tab1, "Build and Export")
+        tab_widget.addTab(tab2, "Folder Sync")
 
         #メインレイアウトセット
         self.setLayout(main_layout)
@@ -706,6 +546,8 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         surface_association =data["surfaceAssociation"]
         influence_association =data["influenceAssociation"]
         triangulate_flag =data["triangulate"]
+        set_material =data["setMaterial"]
+        materials =data["materials"]
         azteca.build.main(source,
                           target,
                           sub_to_poly,
@@ -713,7 +555,9 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
                           copy_skin,
                           surface_association,
                           influence_association,
-                          triangulate=triangulate_flag)
+                          triangulate=triangulate_flag,
+                          setMaterial=set_material,
+                            materials=materials)
     def _export(self,data):
         options = "v=0"
         if data["format"] == "OBJexport":
@@ -791,12 +635,6 @@ def open_window(restore=False):
                     uiScript='import azteca.build_and_export; azteca.build_and_export.open_window(restore=True)')
 
     return Window
-
-def string_array_to_id(string_array,key_string):
-    for i in range(len(string_array)):
-        if string_array[i] == key_string:
-            return i
-    return 0
 
 def main():
     ui = open_window()

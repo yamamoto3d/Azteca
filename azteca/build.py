@@ -3,7 +3,9 @@ import maya.mel as mel
 
 TRASH_BOX = 'trash_box'
 def swap(source,target,keep_target = True):
-    target_parent = cmds.listRelatives(target, parent =True, fullPath=True)[0]
+    print("target:"+target)
+    #targetの親を取得
+    target_parent = cmds.listRelatives(target, parent=True, fullPath=True)[0]
     print("ペアレントパス:"+target_parent)
     after_parent =target_parent+"|"+cmds.parent(source,target_parent)[0]
     print("ペアレント後"+after_parent)
@@ -89,6 +91,12 @@ def copy_skin_keep_joint(source, destination, surface_association="closestPoint"
                          surfaceAssociation =surface_association,
                          influenceAssociation = influence_association)
 
+def set_materials(material,targets):
+    #マテリアルからスムージンググループを取得
+    sg = cmds.listConnections(material,type="shadingEngine")[0]
+    for target in targets:
+        cmds.sets(target,edit=True,forceElement=sg)
+
 def main(source,
          target,
          sub_div_to_poly=False,
@@ -96,9 +104,21 @@ def main(source,
          copy_skin=False,
          surface_association="closestPoint",
          influence_association="closestJoint",
-         triangulate=False):
+         triangulate=False,
+         setMaterial=False,
+         materials=[]):
     d_copy=cmds.duplicate(source,fullPath=True)[0]
     print("デュプリケート後:"+d_copy)
+
+    if setMaterial:
+        d_copy_name = d_copy.split("|")[-1]
+        source_name = source.split("|")[-1]
+        for m in materials:
+            name_changed_targets =[]
+            for t in m["target"]:
+              name_changed_targets.append(t.replace(source_name,d_copy_name))
+            set_materials(m["material"],name_changed_targets)
+
     if sub_div_to_poly:
         smooth_mesh_preview_to_polygon(d_copy)
 
