@@ -5,7 +5,7 @@ from typing import List, Any
 from PySide2.QtWidgets import QHBoxLayout, QTreeWidgetItem, QPushButton, QComboBox
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 from maya import OpenMayaUI as omui
-
+from maya import OpenMaya as om
 try:
     from PySide2.QtCore import *
     from PySide2.QtGui import *
@@ -559,18 +559,29 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
                           setMaterial=set_material,
                             materials=materials)
     def _export(self,data):
-        options = "v=0"
-        if data["format"] == "OBJexport":
-            options = "groups=1;ptgroups=1;materials=1;smoothing=1;normals=1"
-
         base_path = cmds.workspace(listFullWorkspaces=True)[0]
         if data["base"] == "game":
             base_path = cmds.optionVar(q=azteca.game_path_panel.GAME_PATH_OPTION_VAR_NAME)
 
-        path = base_path+data["path"]
-
+        path = base_path + data["path"]
         cmds.select(data["target"])
-        cmds.file(path, force=True, options=options, pr=True, type=data["format"], exportSelected=True)
+
+        if data["format"] == "FBX export":
+            cmds.FBXPushSettings()
+            try:
+                cmds.FBXResetExport()
+                cmds.FBXProperty("Export|IncludeGrp|Animation", "-v", 0)
+                cmds.FBXExportCameras("-v", 0)
+                cmds.FBXExportLights("-v", 0)
+                om.MGlobal.executeCommand('FBXExport("-f", "{}", "-s")'.format(path))
+            finally:
+                cmds.FBXPopSettings()
+        else:
+            options = "v=0"
+            if data["format"] == "OBJexport":
+                options = "groups=1;ptgroups=1;materials=1;smoothing=1;normals=1"
+
+            cmds.file(path, force=True, options=options, pr=True, type=data["format"], exportSelected=True)
 
     def save_json(self):
         if self.isLoading is False:
