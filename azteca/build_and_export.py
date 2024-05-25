@@ -22,11 +22,16 @@ import azteca.build
 import azteca.folder_sync
 import azteca.game_path_panel
 import azteca.build_setting_panel
+import azteca.export_setting_panel
 
 #Global変数
 Window = None
-FILE_FORMAT =["FBX export", "mayaAscii", "OBJexport"]
-DEF_EXPORT_NODE_DATA ={"enable":True, "target": "", "base": "maya", "path": "", "format": "FBX export"}
+DEF_EXPORT_NODE_DATA ={"enable":True,
+                       "target": "",
+                       "base": "maya",
+                       "path": "",
+                       "format": "FBX export",
+                       "exportSettings": {}}
 DEF_BUILD_NODE_DATA ={"enable":True,
                     "source":"",
                     "target":"",
@@ -39,155 +44,6 @@ DEF_BUILD_NODE_DATA ={"enable":True,
                     "setMaterial":False,
                     "materials":[]}
 
-class ExportSettingPanel(QWidget):
-    formatComboBox: QComboBox
-    dataChanged =  Signal(dict)
-    def __init__(self, parent=None, *args, **kwargs):
-        super(ExportSettingPanel, self).__init__(parent, *args, **kwargs)
-
-        self.currentData = None
-        self.targetLine = QLineEdit()
-        self.targetLine.setReadOnly(True)
-        self.pathLine = QLineEdit()
-        self.pathLine.setReadOnly(True)
-        self.gameBaseButton = QRadioButton("Game")
-        self.mayaBaseButton = QRadioButton("Maya")
-        self.formatComboBox = QComboBox()
-        self.group = QGroupBox("Export Settings")
-
-        self.initUI()
-
-
-    def initUI(self):
-
-        #target
-        target_layout = QHBoxLayout()
-
-        target_label = QLabel("Target")
-        target_pick_button: QPushButton = QPushButton("Pick Selection")
-        target_pick_button.clicked.connect(self._pick_selection)
-
-        target_layout.addWidget(target_label)
-        target_layout.addWidget(self.targetLine)
-        target_layout.addWidget(target_pick_button)
-
-        #Base Path Selection
-        base_path_layout = QHBoxLayout()
-        base_path_layout.addWidget(QLabel("Base Path"))
-
-        base_path_selection = QButtonGroup()
-        self.mayaBaseButton.clicked.connect(self._maya_radio_clicked)
-        base_path_selection.addButton(self.mayaBaseButton)
-        base_path_layout.addWidget(self.mayaBaseButton)
-
-        self.gameBaseButton.clicked.connect(self._game_radio_clicked)
-        base_path_selection.addButton(self.gameBaseButton)
-        base_path_layout.addWidget(self.gameBaseButton)
-
-        self.mayaBaseButton.setChecked(True)
-
-        #path
-        path_layout = QHBoxLayout()
-
-        edit_button = QPushButton("Set Path")
-        edit_button.clicked.connect(self._open_file_path_dialog)
-
-        self.formatComboBox.addItems(FILE_FORMAT)
-        self.formatComboBox.currentIndexChanged.connect(self._change_file_format)
-
-        path_layout.addWidget(edit_button)
-        path_layout.addWidget(self.pathLine)
-        path_layout.addWidget(self.formatComboBox)
-
-        #mainLayout
-        main_layout = QVBoxLayout()
-
-        main_layout.addLayout(target_layout)
-        main_layout.addLayout(base_path_layout)
-        main_layout.addLayout(path_layout)
-
-        self.group.setLayout(main_layout)
-        root_layout = QVBoxLayout()
-        root_layout.addWidget(self.group)
-        self.setLayout(root_layout)
-
-        self.group.setEnabled(False)
-
-    def setData(self, dict):
-        self.currentData = dict
-        if dict:
-            self.group.setEnabled(True)
-            self.pathLine.setText(dict["path"])
-            self.targetLine.setText(dict["target"])
-
-            if dict["base"]=="game":
-                self.gameBaseButton.setChecked(True)
-            else:
-                self.mayaBaseButton.setChecked(True)
-
-            index =0
-            for t in FILE_FORMAT:
-                if dict["format"] == t:
-                    break
-                else:
-                    index +=1
-
-            self.formatComboBox.setCurrentIndex(index)
-        else:
-            self.group.setEnabled(False)
-            self.pathLine.setText("")
-            self.targetLine.setText("")
-    def _extension_check(self,path):
-        base = path.split(".")[0]
-        fm = self.currentData["format"]
-        if fm == FILE_FORMAT[0]:
-            base = base+".fbx"
-        elif fm == FILE_FORMAT[1]:
-            base = base+".ma"
-        elif fm == FILE_FORMAT[2]:
-            base = base+".obj"
-        return base
-
-    def _open_file_path_dialog(self):
-        base_path = cmds.workspace(listFullWorkspaces=True)[0]
-        if(self.currentData["base"]=="game"):
-            base_path = cmds.optionVar(q=azteca.game_path_panel.GAME_PATH_OPTION_VAR_NAME)
-
-        response = QFileDialog.getSaveFileName (None, "Select File",base_path)
-        path = response[0]
-
-
-        if base_path in path:
-            path = path.replace(base_path,"")
-            path = self._extension_check(path)
-            self.pathLine.setText(path)
-            self.currentData["path"]=path
-            self.dataChanged.emit(self.currentData)
-        else:
-            print("It`s not correct path")
-
-    def _change_file_format(self):
-        self.currentData["format"] =FILE_FORMAT[self.formatComboBox.currentIndex()]
-        self.currentData["path"] =self._extension_check(self.currentData["path"])
-        self.pathLine.setText(self.currentData["path"])
-        self.dataChanged.emit(self.currentData)
-
-    def data(self):
-        return self.currentData
-
-    def _pick_selection(self):
-        if self.currentData:
-            selection = cmds.ls(sl=True,long=True)
-            if len(selection):
-                self.targetLine.setText(selection[0])
-                self.currentData["target"]=selection[0]
-                self.dataChanged.emit(self.currentData)
-    def _maya_radio_clicked(self):
-        self.currentData["base"]="maya"
-        self.dataChanged.emit(self.currentData)
-    def _game_radio_clicked(self):
-        self.currentData["base"]="game"
-        self.dataChanged.emit(self.currentData)
 
 
 class NodeTreeWidget(QTreeWidget):
@@ -372,7 +228,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         self.isLoading = True
 
         self.exportExecButton = QPushButton("Execute Selection")
-        self.exportSettingPanel = ExportSettingPanel()
+        self.exportSettingPanel =azteca.export_setting_panel.ExportSettingPanel()
         self.gamePathPanel =azteca.game_path_panel.GamePathPanel()
         self.nodeTree = NodeTreeWidget()
 
@@ -567,10 +423,32 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         cmds.select(data["target"])
 
         if data["format"] == "FBX export":
+            es = data["exportSettings"]
             cmds.FBXPushSettings()
             try:
                 cmds.FBXResetExport()
-                cmds.FBXProperty("Export|IncludeGrp|Animation", "-v", 0)
+
+                cmds.FBXExportSmoothingGroups("-v", es["smoothing_group"])
+                cmds.FBXExportSmoothMesh("-v", es["smooth_mesh"])
+                cmds.FBXExportHardEdges("-v", es["split_vertex"])
+
+                tr = "false"
+                if es["triangulate"]:
+                    tr = "true"
+                cmds.FBXProperty("Export|IncludeGrp|Geometry|Triangulate", "-v",int(es["triangulate"]))
+                cmds.FBXExportTangents("-v", es["tangent"])
+
+                cmds.FBXExportSkins("-v", es["skinning"])
+                # cmds.FBXProperty("Export|IncludeGrp|Animation|Deformation|Shape", "-v", 0)
+                cmds.FBXExportShapes("-v", es["blendshape"])
+
+                cmds.FBXProperty("Export|IncludeGrp|Animation", "-v", int(es["animation"]))
+                cmds.FBXExportUpAxis(es["up_axis"]) #or z
+                cmds.FBXExportEmbeddedTextures("-v", es["embedded_textures"])
+
+                cmds.FBXExportInAscii("-v", int(es["file_type"] == "ascii"))
+                cmds.FBXExportFileVersion("-v", "FBX201400")
+
                 cmds.FBXExportCameras("-v", 0)
                 cmds.FBXExportLights("-v", 0)
                 om.MGlobal.executeCommand('FBXExport("-f", "{}", "-s")'.format(path))
