@@ -244,6 +244,19 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
 
     def initUI(self):
         main_layout = QVBoxLayout()
+
+        #ファイル関連
+        file_layout = QHBoxLayout()
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(self.load)
+        file_layout.addWidget(refresh_button)
+
+        import_button = QPushButton("Import")
+        import_button.clicked.connect(self.import_json)
+        file_layout.addWidget(import_button)
+
+        main_layout.addLayout(file_layout)
+
         #ゲームパス選択
         main_layout.addWidget(self.gamePathPanel)
 
@@ -351,6 +364,19 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         if data is not None:
             self.folder_sync_ui.set_data(data["syncData"])
         self.isLoading = False
+
+    def import_json(self):
+        #読み込むJSONファイルを選択するダイアログを開く
+        file_path = QFileDialog.getOpenFileName(self, "Open JSON File", "", "JSON Files (*.json)")
+        #JSONファイルが存在する場合読み出し
+        if file_path[0] != "":
+            with open(file_path[0]) as f:
+                self.isLoading = True
+                json_data = json.load(f)
+                self.nodeTree.set_all_data(json_data)
+                if json_data is not None:
+                    self.folder_sync_ui.set_data(json_data["syncData"])
+                self.isLoading = False
 
     def data_structure_changed(self):
         self.save_json()
@@ -495,6 +521,7 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
             json_data = json.loads(json_str)
 
         return json_data
+
 
 def load():
     print("ロードが呼ばれました")
