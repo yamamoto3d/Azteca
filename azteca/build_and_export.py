@@ -328,8 +328,9 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
         self.setWindowTitle('Build And Export')
 
     def current_item_changed(self, current, previous):
+        self.isLoading = True
         if current:
-            self.isLoading =True
+
             self.currentItem = current
             parent = current.parent()
             if parent ==  self.nodeTree.rootExportNode:
@@ -352,10 +353,11 @@ class BuildAndExport(MayaQWidgetDockableMixin, QWidget):
             else:#ルートノード
                 self.exportSettingPanel.setVisible(False)
                 self.buildSettingPanel.setVisible(False)
-            self.isLoading=False
+
         else:#選択なし
             self.exportSettingPanel.setData(None)
             self.exportSettingPanel.setVisible(False)
+        self.isLoading = False
 
     def load(self):
         self.isLoading =True
@@ -541,7 +543,7 @@ def open_window(restore=False):
     if Window is None:
 
         Window = BuildAndExport()
-        #Window.setObjectName('AZTBuildAndExportPanel')
+        Window.setObjectName('AZTBuildAndExportPanel')
 
     if restore:
         mixin_ptr = omui.MQtUtil.findControl(Window.objectName())

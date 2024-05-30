@@ -23,44 +23,69 @@ FBX_DEFAULT_SETTING = {
     "file_type":"ascii",
     "file_version":"2020"
 }
+USD_DEFAULT_SETTING = {
+    "defaultUSDFormat": "usda",
+
+    "defaultMeshScheme": "catmullClark",
+
+    "exportComponentTags":True,
+    "exportColorSets":True,
+    "exportUVs":True,
+    "exportSkels":"auto",
+    "exportSkin":"auto",
+    "exportBlendShapes":True,
+    "exportDisplayColor":False,
+
+    "exportInstances":True,
+    "referenceObjectModels":"none",
+    "exportRelativeTextures":"auto",
+    "convertMaterialsTo": "UsdPreviewSurface",
+}
 class FbxExportSettingPanel(QWidget):
     dataChanged = Signal(dict)
     def __init__(self, parent=None, *args, **kwargs):
         super(FbxExportSettingPanel, self).__init__(parent, *args, **kwargs)
 
+        self.smoothing_group_check = QCheckBox("Smoothing Group")
+        self.smooth_mesh_check = QCheckBox("Smooth Mesh")
+        self.up_axis_combobox = QComboBox()
+        self.tangent_check = QCheckBox("Tangent")
+        self.split_vertex_check = QCheckBox("Split per-vertex Normals")
+        self.triangulate_check = QCheckBox("Triangulate")
+        self.skinning_check = QCheckBox("Skinning")
+        self.file_type_combobox = QComboBox()
+        self.blendshape_check = QCheckBox("Blendshape")
+        self.animation_check = QCheckBox("Animation")
+
+        self.embedded_textures = QCheckBox("Embedded Textures")
+        self.file_version_combobox = QComboBox()
+
         self.initUI()
         self.setData(FBX_DEFAULT_SETTING)
 
+        self.stop_emit=False
+
     def initUI(self):
-        self.smoothing_group_check = QCheckBox("Smoothing Group")
         self.smoothing_group_check.clicked.connect(self.ui_changed)
-        self.smooth_mesh_check = QCheckBox("Smooth Mesh")
         self.smooth_mesh_check.clicked.connect(self.ui_changed)
-        self.split_vertex_check = QCheckBox("Split per-vertex Normals")
         self.split_vertex_check.clicked.connect(self.ui_changed)
-        self.triangulate_check = QCheckBox("Triangulate")
         self.triangulate_check.clicked.connect(self.ui_changed)
-        self.tangent_check = QCheckBox("Tangent")
         self.tangent_check.clicked.connect(self.ui_changed)
-        self.skinning_check = QCheckBox("Skinning")
         self.skinning_check.clicked.connect(self.ui_changed)
-        self.blendshape_check = QCheckBox("BlendShape")
         self.blendshape_check.clicked.connect(self.ui_changed)
-        self.animation_check = QCheckBox("Animation")
+
+        self.skinning_check.clicked.connect(self.ui_changed)
         self.animation_check.clicked.connect(self.ui_changed)
 
-        self.up_axis_combobox = QComboBox()
         self.up_axis_combobox.currentIndexChanged.connect(self.ui_changed)
         self.up_axis_combobox.addItems(["Y","Z"])
         self.up_axis_combobox.currentIndexChanged.connect(self.ui_changed)
-        self.embedded_textures = QCheckBox("Embedded Textures")
         self.embedded_textures.clicked.connect(self.ui_changed)
 
-        self.file_type_combobox = QComboBox()
         self.file_type_combobox.currentIndexChanged.connect(self.ui_changed)
         self.file_type_combobox.addItems(["ascii","binary"])
         self.file_type_combobox.currentIndexChanged.connect(self.ui_changed)
-        self.file_version_combobox = QComboBox()
+
         self.file_version_combobox.currentIndexChanged.connect(self.ui_changed)
         self.file_version_combobox.addItems(["FBX202000","FBX201900","FBX201800","FBX201600","FBX201400","FBX201300","FBX201200","FBX201100","FBX201000","FBX200900","FBX200611"])
         self.file_version_combobox.currentIndexChanged.connect(self.ui_changed)
@@ -71,6 +96,7 @@ class FbxExportSettingPanel(QWidget):
         grid_layout.addWidget(self.smooth_mesh_check,1,0)
         grid_layout.addWidget(self.split_vertex_check,2,0)
         grid_layout.addWidget(self.skinning_check,3,0)
+        grid_layout.addWidget(self.animation_check,4,0)
 
         grid_layout.addWidget(self.triangulate_check,0,1)
         grid_layout.addWidget(self.tangent_check,1,1)
@@ -79,9 +105,9 @@ class FbxExportSettingPanel(QWidget):
         up_axis_layout = QHBoxLayout()
         up_axis_layout.addWidget(QLabel("Up Axis"))
         up_axis_layout.addWidget(self.up_axis_combobox)
-        grid_layout.addLayout(up_axis_layout,4,0)
+        grid_layout.addLayout(up_axis_layout,5,0)
 
-        grid_layout.addWidget(self.embedded_textures,4,1)
+        grid_layout.addWidget(self.embedded_textures,5,1)
 
         file_type_layout = QHBoxLayout()
         file_type_layout.addWidget(QLabel("File Type"))
@@ -98,6 +124,7 @@ class FbxExportSettingPanel(QWidget):
         self.setLayout(main_layout)
 
     def setData(self, dict):
+        self.stop_emit=True
         self.smoothing_group_check.setChecked(dict["smoothing_group"])
         self.smooth_mesh_check.setChecked(dict["smooth_mesh"])
         self.split_vertex_check.setChecked(dict["split_vertex"])
@@ -110,6 +137,7 @@ class FbxExportSettingPanel(QWidget):
         self.embedded_textures.setChecked(dict["embedded_textures"])
         self.file_type_combobox.setCurrentText(dict["file_type"])
         self.file_version_combobox.setCurrentText(dict["file_version"])
+        self.stop_emit=False
 
     def data(self):
         return {
@@ -126,6 +154,8 @@ class FbxExportSettingPanel(QWidget):
             "file_type":self.file_type_combobox.currentText(),
             "file_version":self.file_version_combobox.currentText()}
     def ui_changed(self):
+        if self.stop_emit:
+            return
         self.dataChanged.emit(self.data())
 
 
@@ -234,6 +264,7 @@ class ExportSettingPanel(QWidget):
                     index +=1
 
             self.formatComboBox.setCurrentIndex(index)
+            self.fbx_panel.setData(dict["exportSettings"])
         else:
             self.group.setEnabled(False)
             self.pathLine.setText("")
