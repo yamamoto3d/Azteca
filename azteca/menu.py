@@ -21,7 +21,7 @@ def main():
     cmds.menuItem( label='Modeling', tearOff=True, subMenu=True )
 
     cmds.menuItem( label='Set Subdivision Level', command='import azteca.set_subdivision_level;azteca.set_subdivision_level.main()' )
-
+    cmds.menuItem( label='Delete History Keep Skin', command='import azteca.delete_history_keep_skin;azteca.delete_history_keep_skin.main()' )
     cmds.setParent( '..', menu=True )
 
     # Camera
@@ -29,3 +29,4 @@ def main():
     cmds.menuItem( label='Create Camera Projection Material', command='import azteca.create_camera_projection_material;azteca.create_camera_projection_material.main()' )
     cmds.menuItem( label='Focal Length Up', command='import azteca.focalLength_up;azteca.focalLength_up.main(True)' )
     cmds.menuItem( label='Focal Length Down', command='import azteca.focalLength_up;azteca.focalLength_up.main(False)' )
+    cmds.setParent( '..', menu=True )
