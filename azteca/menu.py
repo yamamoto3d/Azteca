@@ -23,3 +23,7 @@ def main():
     cmds.menuItem( label='Set Subdivision Level', command='import azteca.set_subdivision_level;azteca.set_subdivision_level.main()' )
 
     cmds.setParent( '..', menu=True )
+
+    # Camera
+    cmds.menuItem( label='Camera', tearOff=True, subMenu=True )
+    cmds.menuItem( label='Create Camera Projection Material', command='import azteca.create_camera_projection_material;azteca.create_camera_projection_material.main()' )
