@@ -27,3 +27,5 @@ def main():
     # Camera
     cmds.menuItem( label='Camera', tearOff=True, subMenu=True )
     cmds.menuItem( label='Create Camera Projection Material', command='import azteca.create_camera_projection_material;azteca.create_camera_projection_material.main()' )
+    cmds.menuItem( label='Focal Length Up', command='import azteca.focalLength_up;azteca.focalLength_up.main(True)' )
+    cmds.menuItem( label='Focal Length Down', command='import azteca.focalLength_up;azteca.focalLength_up.main(False)' )
